@@ -1,105 +1,96 @@
 from datetime import date
 
 class Usuario:
-    def __init__(self,id,nombre,email,password):
+    def __init__(self,id,nombre,email,contrasena):
         self.id=id
         self.nombre=nombre
         self.email=email
-        self.password=password
-        self.directorios=[]#lista directorios
+        self.contrasena=contrasena
+        self.directorios=[]
 
-    def crear_directorio(self,nombre):
-        directorio=Directorio(nombre)
+    def obtenerCantidadArchivos(self):
+        return sum(len(d.obtenerArchivos())for d in self.directorios)
+
+    def obtenerTamañoTotalArchivos(self):
+        return sum(a.obtenerTamaño()for d in self.directorios for a in d.obtenerArchivos())
+
+    def agregarDirectorio(self,directorio):
         self.directorios.append(directorio)
-        return directorio
-
-    def contar_archivos(self):
-        return sum(len(d.archivos) for d in self.directorios)
-
-    def calcular_espacio(self):
-        return sum(sum(a.tamano for a in d.archivos) for d in self.directorios)
 
 class Directorio:
     def __init__(self,nombre):
         self.nombre=nombre
-        self.archivos=[]#lista archivos
-        self.subdirectorios=[]#lista subdirectorios
+        self.archivos=[]
+        self.subdirectorios=[]
 
-    def agregar_archivo(self,archivo):
+    def agregarArchivo(self,archivo):
         self.archivos.append(archivo)
 
-    def agregar_subdirectorio(self,directorio):
+    def agregarSubdirectorio(self,directorio):
         self.subdirectorios.append(directorio)
 
-class Archivo:
-    def __init__(self,nombre,tamano):
-        self.nombre=nombre
-        self.fecha_creacion=date.today()
-        self.fecha_modificacion=self.fecha_creacion
-        self.tamano=tamano
+    def obtenerArchivos(self):
+        return self.archivos
 
-    def modificar_archivo(self,nuevo_tamano):
-        self.tamano=nuevo_tamano
-        self.fecha_modificacion=date.today()
+    def obtenerSubdirectorios(self):
+        return self.subdirectorios
+
+class Archivo:
+    def __init__(self,nombre,creacion,modificacion,tamano,compartir=None):
+        self.nombre=nombre
+        self.creacion=creacion
+        self.modificacion=modificacion
+        self.tamano=tamano
+        self.compartir=compartir
+
+    def obtenerTamaño(self):
+        return self.tamano
 
 class Compartir:
-    def __init__(self,propietario,archivo):
-        self.propietario=propietario
-        self.archivo=archivo
-
-    def es_accesible(self,usuario):
-        pass#verificar acceso
+    def acceder(self,usuario):
+        raise NotImplementedError
 
 class CompartirUsuario(Compartir):
-    def __init__(self,propietario,archivo):
-        super().__init__(propietario,archivo)
-        self.usuarios_autorizados=[]#lista usuarios
+    def __init__(self):
+        self.usuariosPermitidos=[]
 
-    def compartir_con(self,usuario):
-        self.usuarios_autorizados.append(usuario)
+    def agregarUsuario(self,usuario):
+        self.usuariosPermitidos.append(usuario)
 
-    def es_accesible(self,usuario):
-        return usuario in self.usuarios_autorizados
+    def acceder(self,usuario):
+        return usuario in self.usuariosPermitidos
 
 class CompartirPublico(Compartir):
-    def __init__(self,propietario,archivo,fecha_limite):
-        super().__init__(propietario,archivo)
-        self.fecha_limite=fecha_limite
+    def __init__(self,limite):
+        self.limite=limite
 
-    def definir_publico(self,fecha_limite):
-        self.fecha_limite=fecha_limite
+    def acceder(self,usuario):
+        return date.today()<=self.limite
 
-    def es_accesible(self,usuario):
-        return date.today()<=self.fecha_limite
+# Main con pruebas
+usuario1=Usuario(1,"Alice","alice@mail.com","1234")
+usuario2=Usuario(2,"Bob","bob@mail.com","5678")
 
-#MAIN
-if __name__=="__main__":
-    print("====INICIO====\n")
+directorio1=Directorio("Documentos")
+directorio2=Directorio("Imagenes")
 
-    #Crear usuario
-    usuario1=Usuario(1,"Juan","juan@example.com","1234")
+archivo1=Archivo("notas.txt",date(2024,3,1),date(2024,3,3),15.5)
+archivo2=Archivo("foto.jpg",date(2024,2,28),date(2024,3,2),220.3)
 
-    #Crear directorio
-    dir1=usuario1.crear_directorio("Mis Documentos")
+directorio1.agregarArchivo(archivo1)
+directorio2.agregarArchivo(archivo2)
 
-    #Crear archivos
-    archivo1=Archivo("reporte.pdf",2.5)
-    archivo2=Archivo("datos.xlsx",1.2)
+usuario1.agregarDirectorio(directorio1)
+usuario1.agregarDirectorio(directorio2)
 
-    #Agregar archivos
-    dir1.agregar_archivo(archivo1)
-    dir1.agregar_archivo(archivo2)
+compartirU=CompartirUsuario()
+compartirU.agregarUsuario(usuario2)
+archivo1.compartir=compartirU
 
-    #Compartir archivo
-    compartir1=CompartirUsuario(usuario1,archivo1)
-    usuario2=Usuario(2,"Maria","maria@example.com","5678")
-    compartir1.compartir_con(usuario2)
+compartirP=CompartirPublico(date(2024,3,10))
+archivo2.compartir=compartirP
 
-    #Compartir publico
-    compartir2=CompartirPublico(usuario1,archivo2,date(2024,4,1))
-
-    #Mostrar accesos
-    print(f"Maria acceso reporte.pdf: {compartir1.es_accesible(usuario2)}")
-    print(f"Publico datos.xlsx: {compartir2.es_accesible(usuario2)}\n")
-
-    print("====FIN====")
+print("Cantidad archivos usuario1:",usuario1.obtenerCantidadArchivos())
+print("Tamano total usuario1:",usuario1.obtenerTamañoTotalArchivos())
+print("Usuario2 accede a notas.txt:",archivo1.compartir.acceder(usuario2))
+print("Usuario2 accede a foto.jpg:",archivo2.compartir.acceder(usuario2))
